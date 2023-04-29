@@ -69,42 +69,42 @@ exports.plugin = function (schema, options) {
   schema.add(fields);
 
   // Find the counter for this model and the relevant field.
-  IdentityCounter.findOne(
-    { model: settings.model, field: settings.field },
-    function (err, counter) {
-      if (!counter) {
-        // If no counter exists then create one and save it.
-        counter = new IdentityCounter({
-          model: settings.model,
-          field: settings.field,
-          count: settings.startAt - settings.incrementBy,
-        });
-        counter.save(function () {
-          ready = true;
-        });
-      } else {
+  IdentityCounter.findOne({
+    model: settings.model,
+    field: settings.field,
+  }).then(function (counter) {
+    if (!counter) {
+      // If no counter exists then create one and save it.
+      counter = new IdentityCounter({
+        model: settings.model,
+        field: settings.field,
+        count: settings.startAt - settings.incrementBy,
+      });
+      counter.save().then(function () {
         ready = true;
-      }
+      });
+    } else {
+      ready = true;
     }
-  );
+  });
 
   // Declare a function to get the next counter for the model/schema.
   var nextCount = function (callback) {
-    IdentityCounter.findOne(
-      {
-        model: settings.model,
-        field: settings.field,
-      },
-      function (err, counter) {
-        if (err) return callback(err);
+    IdentityCounter.findOne({
+      model: settings.model,
+      field: settings.field,
+    })
+      .then(function (counter) {
         callback(
           null,
           counter === null
             ? settings.startAt
             : counter.count + settings.incrementBy
         );
-      }
-    );
+      })
+      .catch(function (err) {
+        return callback(err);
+      });
   };
   // Add nextCount as both a method on documents and a static on the schema for convenience.
   schema.method("nextCount", nextCount);
@@ -115,12 +115,14 @@ exports.plugin = function (schema, options) {
     IdentityCounter.findOneAndUpdate(
       { model: settings.model, field: settings.field },
       { count: settings.startAt - settings.incrementBy },
-      { new: true }, // new: true specifies that the callback should get the updated counter.
-      function (err) {
-        if (err) return callback(err);
+      { new: true } // new: true specifies that the callback should get the updated counter.
+    )
+      .then(function (counter) {
         callback(null, settings.startAt);
-      }
-    );
+      })
+      .catch(function (err) {
+        return callback(err);
+      });
   };
   // Add resetCount as both a method on documents and a static on the schema for convenience.
   schema.method("resetCount", resetCount);
@@ -150,13 +152,15 @@ exports.plugin = function (schema, options) {
                 count: { $lt: doc[settings.field] },
               },
               // Change the count of the value found to the new field value.
-              { count: doc[settings.field] },
-              function (err) {
-                if (err) return next(err);
+              { count: doc[settings.field] }
+            )
+              .then(function (counter) {
                 // Continue with default document save functionality.
                 next();
-              }
-            );
+              })
+              .catch(function (err) {
+                return next(err);
+              });
           } else {
             // Find the counter collection entry for this model and field and update it.
             IdentityCounter.findOneAndUpdate(
@@ -165,16 +169,17 @@ exports.plugin = function (schema, options) {
               // Increment the count by `incrementBy`.
               { $inc: { count: settings.incrementBy } },
               // new:true specifies that the callback should get the counter AFTER it is updated (incremented).
-              { new: true },
-              // Receive the updated counter.
-              function (err, updatedIdentityCounter) {
-                if (err) return next(err);
+              { new: true }
+            )
+              .then(function (updatedIdentityCounter) {
                 // If there are no errors then go ahead and set the document's field to the current count.
                 doc[settings.field] = updatedIdentityCounter.count;
                 // Continue with default document save functionality.
                 next();
-              }
-            );
+              })
+              .catch(function (err) {
+                return next(err);
+              });
           }
         }
         // If not ready then set a 5 millisecond timer and try to save again. It will keep doing this until
