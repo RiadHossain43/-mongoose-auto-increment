@@ -5,7 +5,7 @@ var mongoose = require("mongoose"),
   IdentityCounter;
 
 // Initialize plugin by creating counter collection in database.
-exports.initialize = function (connection) {
+exports.initialize = function () {
   try {
     IdentityCounter = mongoose.model("IdentityCounter");
   } catch (ex) {
