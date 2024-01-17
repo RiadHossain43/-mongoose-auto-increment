@@ -1,6 +1,6 @@
 {
   "name": "@riadhossain43/mongoose-autoincrement",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "extend": "^3.0.2",
-    "mongoose": "^5.11.15"
+    "mongoose": "^8.1.0"
   },
   "devDependencies": {
     "async": "*",
